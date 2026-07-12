@@ -591,13 +591,462 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Trip page hooks
   initTripsUI();
+
+  // Maintenance page hooks
+  initMaintenanceUI();
+
+  // Fuel page hooks
+  initFuelUI();
 });
 
 
 console.log('TransitOps UI loaded');
 
+function initFuelUI() {
+  const fuelSearchInput = document.getElementById('fuelSearchInput');
+  const fuelTypeFilter = document.getElementById('fuelTypeFilter');
+  const fuelDateFilter = document.getElementById('fuelDateFilter');
+  const fuelTableBody = document.getElementById('fuelTableBody');
+
+  if (!fuelTableBody) return;
+
+  const fuelModal = document.getElementById('fuelModal');
+  const addFuelBtn = document.getElementById('addFuelBtn');
+  const closeFuelModal = document.getElementById('closeFuelModal');
+  const cancelFuelModal = document.getElementById('cancelFuelModal');
+
+  const fuelForm = document.getElementById('fuelForm');
+  const fuelModalTitle = document.getElementById('fuelModalTitle');
+  const fuelFormMode = document.getElementById('fuelFormMode');
+  const originalFuelLogId = document.getElementById('originalFuelLogId');
+
+  const deleteFuelForm = document.getElementById('deleteFuelForm');
+  const deleteFuelLogId = document.getElementById('deleteFuelLogId');
+
+  const fields = {
+    log_id: null,
+
+    vehicle: document.getElementById('fuelVehicle'),
+    driver: document.getElementById('fuelDriver'),
+    fuel_type: document.getElementById('fuelType'),
+    fuel_quantity: document.getElementById('fuelQuantity'),
+    fuel_cost: document.getElementById('fuelCost'),
+    current_odometer: document.getElementById('fuelOdometer'),
+    fuel_station: document.getElementById('fuelStation'),
+    fuel_date: document.getElementById('fuelDate'),
+    remarks: document.getElementById('fuelRemarks'),
+  };
+
+  const FUEL_PER_PAGE = 6;
+  let fuelCurrentPage = 1;
+
+  const fuelPaginationMeta = document.getElementById('fuelPaginationMeta');
+  const fuelPrevPageBtn = document.getElementById('fuelPrevPageBtn');
+  const fuelNextPageBtn = document.getElementById('fuelNextPageBtn');
+
+  function applyFuelPagination(totalMatches) {
+    const rows = Array.from(fuelTableBody.rows);
+    const matchedRows = rows.filter((r) => r.dataset.matchesFiltered === 'true');
+    const total = totalMatches;
+    const totalPages = Math.max(1, Math.ceil(total / FUEL_PER_PAGE));
+
+    fuelCurrentPage = Math.min(Math.max(fuelCurrentPage, 1), totalPages);
+
+    const startIndex = (fuelCurrentPage - 1) * FUEL_PER_PAGE;
+    const endIndex = Math.min(startIndex + FUEL_PER_PAGE, total);
+
+    matchedRows.forEach((row, idx) => {
+      row.style.display = idx >= startIndex && idx < endIndex ? '' : 'none';
+    });
+
+    rows.forEach((row) => {
+      if (row.dataset.matchesFiltered !== 'true') row.style.display = 'none';
+    });
+
+    if (fuelPaginationMeta) {
+      const from = total === 0 ? 0 : startIndex + 1;
+      const to = total === 0 ? 0 : endIndex;
+      fuelPaginationMeta.textContent = `Showing ${from}–${to} of ${total} Fuel Logs`;
+    }
+
+    if (fuelPrevPageBtn) fuelPrevPageBtn.disabled = fuelCurrentPage <= 1;
+    if (fuelNextPageBtn) fuelNextPageBtn.disabled = fuelCurrentPage >= totalPages;
+  }
+
+  function filterFuelRows() {
+    const q = (fuelSearchInput?.value || '').trim().toLowerCase();
+    const ft = (fuelTypeFilter?.value || 'all').toLowerCase();
+    const fd = fuelDateFilter?.value || 'all';
+
+    Array.from(fuelTableBody.rows).forEach((row) => {
+      const vehicle = (row.dataset.vehicle || '').toLowerCase();
+      const fuelType = (row.dataset.fuelType || '').toLowerCase();
+      const rowDate = row.dataset.date || '';
+
+      const matchesQ = !q || vehicle.includes(q) || (row.cells[0].textContent || '').toLowerCase().includes(q);
+      const matchesT = ft === 'all' || fuelType === ft;
+      const matchesD = fd === 'all' || rowDate === fd;
+
+      const matches = matchesQ && matchesT && matchesD;
+      row.dataset.matchesFiltered = matches ? 'true' : 'false';
+      row.style.display = '';
+    });
+
+    fuelCurrentPage = 1;
+    const matchedCount = Array.from(fuelTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+    applyFuelPagination(matchedCount);
+
+    const empty = document.getElementById('fuelEmptyState');
+    if (empty) empty.classList.toggle('hidden', matchedCount !== 0);
+  }
+
+  function getFuelRowData(row) {
+    return {
+      log_id: row.dataset.logId || row.children[0].textContent.trim(),
+      vehicle: row.dataset.vehicle,
+      driver: row.dataset.driver,
+      fuel_type: row.cells[3].textContent.trim(),
+      fuel_quantity: row.cells[4].textContent.trim(),
+      cost: (row.cells[5].textContent || '').replace(/[^0-9.]/g, ''),
+      mileage: row.cells[6].textContent.trim(),
+      fuel_station: row.cells[7].textContent.trim(),
+      fuel_date: row.dataset.date || row.cells[8].textContent.trim(),
+      remarks: '',
+    };
+  }
+
+  function closeFuelModalUI() {
+    fuelModal.classList.add('hidden');
+  }
+
+  function openFuelModal(mode, rec = null) {
+    fuelModal.classList.remove('hidden');
+    fuelFormMode.value = mode;
+    fuelModalTitle.textContent = mode === 'edit' ? 'Edit Fuel Log' : 'Add Fuel Log';
+
+    if (mode === 'edit' && rec) {
+      originalFuelLogId.value = rec.log_id || '';
+      if (fields.vehicle) fields.vehicle.value = rec.vehicle;
+      if (fields.driver) fields.driver.value = rec.driver;
+      if (fields.fuel_type) fields.fuel_type.value = rec.fuel_type;
+      if (fields.fuel_quantity) fields.fuel_quantity.value = rec.fuel_quantity;
+      if (fields.fuel_cost) fields.fuel_cost.value = rec.cost;
+      if (fields.current_odometer) fields.current_odometer.value = '';
+      if (fields.fuel_station) fields.fuel_station.value = rec.fuel_station;
+      if (fields.fuel_date) fields.fuel_date.value = rec.fuel_date;
+      if (fields.remarks) fields.remarks.value = rec.remarks || '';
+    } else {
+      fuelForm.reset();
+      fuelFormMode.value = 'add';
+      originalFuelLogId.value = '';
+      if (fields.remarks) fields.remarks.value = '';
+      if (fuelTableBody) {
+        const first = fuelTableBody.querySelector('tr');
+        if (first && fields.vehicle) fields.vehicle.value = first.dataset.vehicle || '';
+        if (first && fields.driver) fields.driver.value = first.dataset.driver || '';
+        if (first && fields.fuel_type) fields.fuel_type.value = first.cells[3].textContent.trim();
+      }
+      if (fields.fuel_date) {
+        const today = new Date();
+        const iso = today.toISOString().slice(0, 10);
+        fields.fuel_date.value = iso;
+      }
+    }
+
+    document.getElementById('fuelVehicle')?.focus();
+  }
+
+  if (addFuelBtn) addFuelBtn.addEventListener('click', () => openFuelModal('add'));
+  if (closeFuelModal) closeFuelModal.addEventListener('click', closeFuelModalUI);
+  if (cancelFuelModal) cancelFuelModal.addEventListener('click', closeFuelModalUI);
+  if (fuelModal) {
+    fuelModal.addEventListener('click', (e) => {
+      if (e.target === fuelModal) closeFuelModalUI();
+    });
+  }
+
+  if (fuelPrevPageBtn) {
+    fuelPrevPageBtn.addEventListener('click', () => {
+      if (fuelPrevPageBtn.disabled) return;
+      fuelCurrentPage -= 1;
+      const matchedCount = Array.from(fuelTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+      applyFuelPagination(matchedCount);
+    });
+  }
+
+  if (fuelNextPageBtn) {
+    fuelNextPageBtn.addEventListener('click', () => {
+      if (fuelNextPageBtn.disabled) return;
+      fuelCurrentPage += 1;
+      const matchedCount = Array.from(fuelTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+      applyFuelPagination(matchedCount);
+    });
+  }
+
+  if (fuelTableBody) {
+    fuelTableBody.addEventListener('click', (event) => {
+      const editBtn = event.target.closest('.edit-fuel-btn');
+      const deleteBtn = event.target.closest('.delete-fuel-btn');
+
+      if (editBtn) {
+        const row = editBtn.closest('tr');
+        if (!row) return;
+        const data = getFuelRowData(row);
+        openFuelModal('edit', data);
+      }
+
+      if (deleteBtn) {
+        const row = deleteBtn.closest('tr');
+        if (!row) return;
+        const logId = row.dataset.logId || row.children[0].textContent.trim();
+        if (confirm('Delete this fuel log record?')) {
+          deleteFuelLogId.value = logId;
+          deleteFuelForm.submit();
+        }
+      }
+    });
+  }
+
+  if (fuelSearchInput) fuelSearchInput.addEventListener('input', filterFuelRows);
+  if (fuelTypeFilter) fuelTypeFilter.addEventListener('change', filterFuelRows);
+  if (fuelDateFilter) fuelDateFilter.addEventListener('change', filterFuelRows);
+
+  // Ensure initial filtered state
+  Array.from(fuelTableBody.rows).forEach((row) => {
+    row.dataset.matchesFiltered = 'true';
+  });
+  fuelCurrentPage = 1;
+  filterFuelRows();
+}
+
+
+function initMaintenanceUI() {
+  const maintenanceSearchInput = document.getElementById('maintenanceSearchInput');
+  const serviceTypeFilter = document.getElementById('serviceTypeFilter');
+  const maintenanceStatusFilter = document.getElementById('maintenanceStatusFilter');
+  const maintenanceTableBody = document.getElementById('maintenanceTableBody');
+
+  if (!maintenanceTableBody) return;
+
+  const maintenanceModal = document.getElementById('maintenanceModal');
+  const addMaintenanceBtn = document.getElementById('addMaintenanceBtn');
+  const closeMaintenanceModal = document.getElementById('closeMaintenanceModal');
+  const cancelMaintenanceModal = document.getElementById('cancelMaintenanceModal');
+
+  const maintenanceForm = document.getElementById('maintenanceForm');
+  const maintenanceModalTitle = document.getElementById('maintenanceModalTitle');
+  const maintenanceFormMode = document.getElementById('maintenanceFormMode');
+  const originalServiceId = document.getElementById('originalServiceId');
+
+  const fields = {
+    service_id: null, // not shown in modal; we will ask for Service ID through edit using originalServiceId
+    vehicle: document.getElementById('maintenanceVehicle'),
+    service_type: document.getElementById('maintenanceServiceType'),
+    mechanic_name: document.getElementById('maintenanceMechanicName'),
+    service_date: document.getElementById('maintenanceServiceDate'),
+    estimated_cost: document.getElementById('maintenanceEstimatedCost'),
+    notes: document.getElementById('maintenanceNotes'),
+    status: document.getElementById('maintenanceStatus'),
+  };
+
+  // We store service_id in the hidden originalServiceId + use it to populate modal for edit.
+  // For add, we generate a temporary service_id on the client is NOT requested; service_id is required by backend.
+  // Therefore we will inject a Service ID input dynamically when opening the modal.
+  function ensureServiceIdInput() {
+    let input = document.getElementById('maintenanceServiceIdInput');
+    if (input) return;
+    const grid = maintenanceForm.querySelector('.modal-grid');
+    if (!grid) return;
+
+    const wrapper = document.createElement('label');
+    wrapper.innerHTML = `\r\n      Service ID\r\n      <input type="text" id="maintenanceServiceIdInput" name="service_id" required />\r\n    `;
+    grid.appendChild(wrapper);
+  }
+
+  function openMaintenanceModal(mode, rec = null) {
+    ensureServiceIdInput();
+    maintenanceModal.classList.remove('hidden');
+    maintenanceFormMode.value = mode;
+    maintenanceModalTitle.textContent = mode === 'edit' ? 'Edit Maintenance' : 'Add Maintenance';
+
+    if (mode === 'edit' && rec) {
+      document.getElementById('maintenanceServiceIdInput').value = rec.service_id;
+      fields.vehicle.value = rec.vehicle;
+      fields.service_type.value = rec.service_type;
+      fields.mechanic_name.value = rec.mechanic_name;
+      // rec.service_date is YYYY-MM-DD
+      fields.service_date.value = rec.service_date;
+      fields.estimated_cost.value = rec.estimated_cost;
+      fields.notes.value = rec.notes || '';
+      fields.status.value = rec.status;
+      originalServiceId.value = rec.service_id;
+    } else {
+      maintenanceForm.reset();
+      maintenanceFormMode.value = 'add';
+      originalServiceId.value = '';
+      // default
+      if (fields.status) fields.status.value = 'Scheduled';
+      if (fields.notes) fields.notes.value = '';
+      if (fields.vehicle && maintenanceTableBody) {
+        // default to first vehicle from table data
+        const firstRow = maintenanceTableBody.querySelector('tr');
+        if (firstRow && firstRow.dataset.vehicle) fields.vehicle.value = firstRow.dataset.vehicle;
+      }
+      // leave service_id empty for required input
+    }
+
+    document.getElementById('maintenanceServiceIdInput').focus();
+  }
+
+  function closeMaintenanceModalUI() {
+    maintenanceModal.classList.add('hidden');
+  }
+
+  if (addMaintenanceBtn) addMaintenanceBtn.addEventListener('click', () => openMaintenanceModal('add'));
+  if (closeMaintenanceModal) closeMaintenanceModal.addEventListener('click', closeMaintenanceModalUI);
+  if (cancelMaintenanceModal) cancelMaintenanceModal.addEventListener('click', closeMaintenanceModalUI);
+  if (maintenanceModal) {
+    maintenanceModal.addEventListener('click', (e) => {
+      if (e.target === maintenanceModal) closeMaintenanceModalUI();
+    });
+  }
+
+  function statusTextToKey(txt) {
+    return String(txt || '').toLowerCase().trim().replace(/\s+/g, '-');
+  }
+
+  function getMaintenanceRowData(row) {
+    return {
+      service_id: row.dataset.serviceId,
+      vehicle: row.dataset.vehicle,
+      service_type: row.dataset.serviceType,
+      mechanic_name: row.children[3].textContent.trim(),
+      service_date: row.children[4].textContent.trim(),
+      estimated_cost: row.children[5].textContent.trim().replace(/[^0-9]/g, ''),
+      status: (row.children[6].querySelector('.status-pill')?.textContent || row.dataset.status || '').trim(),
+      notes: row.dataset.notes || '',
+    };
+  }
+
+  // UI-only pagination that respects current filter matches by hiding non-matching rows.
+  const maintenancePaginationMeta = document.getElementById('maintenancePaginationMeta');
+  const maintenancePrevPageBtn = document.getElementById('maintenancePrevPageBtn');
+  const maintenanceNextPageBtn = document.getElementById('maintenanceNextPageBtn');
+  const MAINTENANCE_PER_PAGE = 6;
+  let maintenanceCurrentPage = 1;
+
+  function applyMaintenancePagination(totalMatches) {
+    const rows = Array.from(maintenanceTableBody.rows);
+    const matchedRows = rows.filter((r) => r.dataset.matchesFiltered === 'true');
+    const total = totalMatches;
+    const totalPages = Math.max(1, Math.ceil(total / MAINTENANCE_PER_PAGE));
+
+    maintenanceCurrentPage = Math.min(Math.max(maintenanceCurrentPage, 1), totalPages);
+
+    const startIndex = (maintenanceCurrentPage - 1) * MAINTENANCE_PER_PAGE;
+    const endIndex = Math.min(startIndex + MAINTENANCE_PER_PAGE, total);
+
+    matchedRows.forEach((row, idx) => {
+      row.style.display = idx >= startIndex && idx < endIndex ? '' : 'none';
+    });
+
+    rows.forEach((row) => {
+      if (row.dataset.matchesFiltered !== 'true') row.style.display = 'none';
+    });
+
+    if (maintenancePaginationMeta) {
+      const from = total === 0 ? 0 : startIndex + 1;
+      const to = total === 0 ? 0 : endIndex;
+      maintenancePaginationMeta.textContent = `Showing ${from}–${to} of ${total} Services`;
+    }
+
+    if (maintenancePrevPageBtn) maintenancePrevPageBtn.disabled = maintenanceCurrentPage <= 1;
+    if (maintenanceNextPageBtn) maintenanceNextPageBtn.disabled = maintenanceCurrentPage >= totalPages;
+  }
+
+  function applyMaintenanceFilters() {
+    const q = (maintenanceSearchInput?.value || '').trim().toLowerCase();
+    const st = (serviceTypeFilter?.value || 'all').toLowerCase();
+    const s = (maintenanceStatusFilter?.value || 'all').toLowerCase();
+
+    Array.from(maintenanceTableBody.rows).forEach((row) => {
+      const vehicle = (row.dataset.vehicle || '').toLowerCase();
+      const serviceType = (row.dataset.serviceType || '').toLowerCase();
+      const rowStatus = statusTextToKey(row.dataset.status || '');
+
+      const matchesQ = !q || vehicle.includes(q) || (row.children[1]?.textContent || '').toLowerCase().includes(q);
+      const matchesST = st === 'all' || serviceType === st;
+      const matchesS = s === 'all' || rowStatus === s;
+
+      row.dataset.matchesFiltered = matchesQ && matchesST && matchesS ? 'true' : 'false';
+      // default visible; pagination will finalize display
+      row.style.display = '';
+    });
+
+    const matchedCount = Array.from(maintenanceTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+    maintenanceCurrentPage = 1;
+    applyMaintenancePagination(matchedCount);
+
+    // Empty state toggle
+    const empty = document.getElementById('maintenanceEmptyState');
+    if (empty) {
+      empty.classList.toggle('hidden', matchedCount !== 0);
+    }
+  }
+
+  if (maintenanceSearchInput) maintenanceSearchInput.addEventListener('input', applyMaintenanceFilters);
+  if (serviceTypeFilter) serviceTypeFilter.addEventListener('change', applyMaintenanceFilters);
+  if (maintenanceStatusFilter) maintenanceStatusFilter.addEventListener('change', applyMaintenanceFilters);
+
+  if (maintenancePrevPageBtn) {
+    maintenancePrevPageBtn.addEventListener('click', () => {
+      if (maintenancePrevPageBtn.disabled) return;
+      maintenanceCurrentPage -= 1;
+      const matchedCount = Array.from(maintenanceTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+      applyMaintenancePagination(matchedCount);
+    });
+  }
+
+  if (maintenanceNextPageBtn) {
+    maintenanceNextPageBtn.addEventListener('click', () => {
+      if (maintenanceNextPageBtn.disabled) return;
+      maintenanceCurrentPage += 1;
+      const matchedCount = Array.from(maintenanceTableBody.rows).filter((r) => r.dataset.matchesFiltered === 'true').length;
+      applyMaintenancePagination(matchedCount);
+    });
+  }
+
+  if (maintenanceTableBody) {
+    maintenanceTableBody.addEventListener('click', (event) => {
+      const editBtn = event.target.closest('.edit-maintenance-btn');
+      const deleteBtn = event.target.closest('.delete-maintenance-btn');
+
+      if (editBtn) {
+        const row = editBtn.closest('tr');
+        if (!row) return;
+        const data = getMaintenanceRowData(row);
+        // Notes are not present in the row; backend keeps notes; we store empty.
+        openMaintenanceModal('edit', data);
+      }
+
+      if (deleteBtn) {
+        const row = deleteBtn.closest('tr');
+        if (!row) return;
+        const sid = row.dataset.serviceId;
+        if (confirm('Delete this maintenance record?')) {
+          document.getElementById('deleteMaintenanceServiceId').value = sid;
+          document.getElementById('deleteMaintenanceForm').submit();
+        }
+      }
+    });
+  }
+
+  applyMaintenanceFilters();
+}
+
 function initTripsUI() {
   const tripSearchInput = document.getElementById('tripSearchInput');
+
   const tripStatusFilter = document.getElementById('tripStatusFilter');
   const tripRouteFilter = document.getElementById('tripRouteFilter');
   const tripTableBody = document.getElementById('tripTableBody');

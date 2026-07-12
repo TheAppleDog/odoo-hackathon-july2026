@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}Maintenance Management{% endblock %}
+
+{% block content %}
+  <header class="dashboard-header">
+    <div>
+      <h1>🛠️ Maintenance Management</h1>
+      <p>Manage preventive maintenance and vehicle servicing.</p>
+    </div>
+
+    <button id="addMaintenanceBtn" class="btn-primary btn-compact" type="button">+ Schedule Maintenance</button>
+  </header>
+
+  <div class="vehicle-filters-row compact-wrapper">
+    <div class="vehicle-filters compact-filters maintenance-filters">
+      <div class="search-box">
+        <input id="maintenanceSearchInput" type="text" placeholder="🔍 Search Vehicle..." />
+      </div>
+
+      <div class="status-filter">
+        <select id="serviceTypeFilter" aria-label="Service type">
+          <option value="all">Service Type ▼</option>
+          {% for st in service_types %}
+            <option value="{{ st|lower }}">{{ st }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="status-filter">
+        <select id="maintenanceStatusFilter" aria-label="Status">
+          <option value="all">Status ▼</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="in-progress">In Progress</option>
+          <option value="completed">Completed</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="alert-inline">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="kpis" style="margin-top: 8px;">
+    <div class="card">
+      <span>📦</span>
+      <h2>{{ kpis.total_services }}</h2>
+      <p>Total Services</p>
+    </div>
+    <div class="card">
+      <span>🗓️</span>
+      <h2>{{ kpis.scheduled }}</h2>
+      <p>Scheduled</p>
+    </div>
+    <div class="card">
+      <span>✅</span>
+      <h2>{{ kpis.completed }}</h2>
+      <p>Completed</p>
+    </div>
+    <div class="card">
+      <span>⏰</span>
+      <h2>{{ kpis.overdue }}</h2>
+      <p>Overdue</p>
+    </div>
+  </div>
+
+  <section class="table-card">
+    <div class="table-white-surface">
+      <div id="maintenanceEmptyState" class="vehicle-empty hidden">
+        <div class="vehicle-empty-icon">🧰</div>
+        <div class="vehicle-empty-title">No Maintenance Records Found</div>
+        <div class="vehicle-empty-sub">Try adjusting your filters.</div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="vehicle-table maintenance-table" aria-describedby="maintenanceEmptyState">
+          <thead>
+            <tr>
+              <th>Service ID</th>
+              <th>Vehicle</th>
+              <th>Service Type</th>
+              <th>Mechanic</th>
+              <th>Service Date</th>
+              <th>Estimated Cost</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="maintenanceTableBody">
+            {% for m in maintenance %}
+              <tr
+                data-service-id="{{ m.service_id }}"
+                data-status="{{ m.status|lower }}"
+                data-service-type="{{ m.service_type|lower }}"
+                data-vehicle="{{ m.vehicle|lower }}"
+              >
+                <td>{{ m.service_id }}</td>
+                <td>{{ m.vehicle }}</td>
+                <td>{{ m.service_type }}</td>
+                <td>{{ m.mechanic_name }}</td>
+                <td>{{ m.service_date }}</td>
+                <td>
+                  ₹{{ m.estimated_cost }}
+                </td>
+                <td>
+                  {% set status_key = m.status|lower|replace(' ','-') %}
+                  <span class="status-pill status-{{ status_key }}">{{ m.status }}</span>
+                </td>
+                <td class="action-cell">
+                  <button type="button" class="btn-secondary btn-small edit-maintenance-btn" data-service-id="{{ m.service_id }}">
+                    Edit
+                  </button>
+                  <button type="button" class="btn-danger btn-small delete-maintenance-btn" data-service-id="{{ m.service_id }}">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="driver-pagination" aria-label="Maintenance table pagination">
+        <div class="pagination-meta" id="maintenancePaginationMeta">Showing 1–4 of 0 Services</div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-secondary btn-small" id="maintenancePrevPageBtn" disabled>Previous</button>
+          <button type="button" class="btn-secondary btn-small" id="maintenanceNextPageBtn" disabled>Next</button>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  {# Schedule Maintenance Modal #}
+  <div class="modal-overlay hidden" id="maintenanceModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="maintenanceModalTitle">
+      <div class="modal-header">
+        <h2 id="maintenanceModalTitle">Add Maintenance</h2>
+        <button type="button" class="modal-close" id="closeMaintenanceModal" aria-label="Close">×</button>
+      </div>
+
+      <form id="maintenanceForm" method="post" action="{{ url_for('save_maintenance') }}">
+        <input type="hidden" id="maintenanceFormMode" name="mode" value="add" />
+        <input type="hidden" id="originalServiceId" name="original_service_id" value="" />
+
+        <div class="modal-grid">
+          <label>
+            Vehicle
+            <select id="maintenanceVehicle" name="vehicle" required>
+              {% for vreg in vehicle_registrations %}
+                <option value="{{ vreg }}">{{ vreg }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            Service Type
+            <input type="text" id="maintenanceServiceType" name="service_type" required />
+          </label>
+
+          <label>
+            Mechanic Name
+            <input type="text" id="maintenanceMechanicName" name="mechanic_name" required />
+          </label>
+
+          <label>
+            Service Date
+            <input type="date" id="maintenanceServiceDate" name="service_date" required />
+          </label>
+
+          <label>
+            Estimated Cost
+            <input type="text" id="maintenanceEstimatedCost" name="estimated_cost" required inputmode="numeric" />
+          </label>
+
+          <label>
+            Notes
+            <textarea id="maintenanceNotes" name="notes" rows="3" placeholder="Optional notes"></textarea>
+          </label>
+
+          <label>
+            Status
+            <select id="maintenanceStatus" name="status" required>
+              <option value="Scheduled">Scheduled</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelMaintenanceModal">Cancel</button>
+          <button type="submit" class="btn-primary">Save Maintenance</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <form id="deleteMaintenanceForm" method="post" action="{{ url_for('delete_maintenance') }}" class="hidden">
+    <input type="hidden" name="service_id" id="deleteMaintenanceServiceId" />
+  </form>
+{% endblock %}
+

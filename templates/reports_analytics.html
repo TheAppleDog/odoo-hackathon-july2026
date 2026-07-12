@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}Reports & Analytics{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/reports_analytics.css') }}" />
+
+<div class="dashboard-page">
+  <div class="topbar">
+
+    <h2>Reports &amp; Analytics</h2>
+  </div>
+
+  <section class="card" style="margin-bottom:20px;">
+    <div style="display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;justify-content:space-between;">
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:14px;flex:1;">
+        <label style="margin:0;">
+          Date Filter
+          <div style="display:flex;gap:10px;">
+            <input id="raStartDate" type="date" class="input" />
+            <input id="raEndDate" type="date" class="input" />
+          </div>
+        </label>
+
+        <label style="margin:0;">
+          Vehicle Filter
+          <select id="raVehicleFilter" class="input">
+            <option value="all">All Vehicles</option>
+            {% for v in vehicles %}
+              <option value="{{ v.registration }}">{{ v.registration }} - {{ v.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+
+      <div style="display:flex;gap:12px;justify-content:flex-end;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" id="exportPdfBtn">Export PDF</button>
+        <button type="button" class="btn-secondary" id="exportCsvBtn">Export CSV</button>
+      </div>
+    </div>
+
+    <div id="raExportNotice" class="alert-inline" style="margin-top:14px;display:none;">
+      <div class="alert alert-success">Export feature coming soon (PDF). CSV export will download.</div>
+    </div>
+  </section>
+
+  <div class="kpis" style="margin-top:10px;">
+    <div class="card">
+      <span>🧾</span>
+      <h2 id="kpiTotalTrips">0</h2>
+      <p>Total Trips</p>
+    </div>
+    <div class="card">
+      <span>🚛</span>
+      <h2 id="kpiFleetUtilization">0%</h2>
+      <p>Fleet Utilization</p>
+    </div>
+    <div class="card">
+      <span>⛽</span>
+      <h2 id="kpiFuelExpenses">₹0</h2>
+      <p>Fuel Expenses</p>
+    </div>
+    <div class="card">
+      <span>🛠️</span>
+      <h2 id="kpiMaintenanceCost">₹0</h2>
+      <p>Maintenance Cost</p>
+    </div>
+  </div>
+
+  <div class="chart-grid" style="margin-bottom:20px;">
+    <div class="card">
+      <h3>Monthly Trips</h3>
+      <canvas id="raMonthlyTripsChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Fuel Cost Trend</h3>
+      <canvas id="raFuelCostTrendChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Vehicle Status</h3>
+      <canvas id="raVehicleStatusChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h3>Maintenance Distribution</h3>
+      <canvas id="raMaintenanceDistributionChart"></canvas>
+    </div>
+  </div>
+
+  <div class="main-grid" style="grid-template-columns:1fr;">
+    <section class="card" style="margin-bottom:20px;">
+      <h3 style="margin-top:0;">Top Drivers</h3>
+      <div class="table-responsive">
+        <table class="fuel-table" aria-label="Top Drivers">
+          <thead>
+            <tr>
+              <th>Driver</th>
+              <th>Trips</th>
+              <th>Distance</th>
+              <th>Rating</th>
+            </tr>
+          </thead>
+          <tbody id="raTopDriversBody">
+            {% for row in top_drivers %}
+              <tr>
+                <td>{{ row.driver }}</td>
+                <td>{{ row.trips }}</td>
+                <td>{{ row.distance_km }} km</td>
+                <td>{{ row.rating }}/5</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3 style="margin-top:0;">Most Used Vehicles</h3>
+      <div class="table-responsive">
+        <table class="fuel-table" aria-label="Most Used Vehicles">
+          <thead>
+            <tr>
+              <th>Vehicle</th>
+              <th>Trips</th>
+              <th>Distance</th>
+              <th>Fuel Cost</th>
+            </tr>
+          </thead>
+          <tbody id="raMostUsedVehiclesBody">
+            {% for row in most_used_vehicles %}
+              <tr>
+                <td>{{ row.vehicle }}</td>
+                <td>{{ row.trips }}</td>
+                <td>{{ row.distance_km }} km</td>
+                <td>₹{{ row.fuel_cost }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/reports_analytics.js') }}"></script>
+{% endblock %}
+

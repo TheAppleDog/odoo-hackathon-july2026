@@ -1,7 +1,29 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
+from database import *
 
 app = Flask(__name__)
 app.secret_key = "change_this_secret_key"
+
+def get_vehicles_data():
+    db_vehicles = get_all_vehicles()
+
+    vehicles = []
+
+    for v in db_vehicles:
+        vehicles.append({
+            "registration": v["registration_number"],
+            "name": v["vehicle_name"],
+            "type": v["vehicle_type"],
+            "capacity": f'{v["capacity"]} kg',
+            "fuel_type": v["fuel_type"],
+            "odometer": v["odometer"],
+            "purchase_date": str(v["purchase_date"]),
+            "status": v["status"],
+            "driver_name": "",
+            "trip_id": ""
+        })
+
+    return vehicles
 
 # Mock user credentials for initial project foundation
 VALID_EMAIL = "user@transitops.com"
@@ -10,107 +32,6 @@ VALID_PASSWORD = "Transit2026"
 # Sample in-memory vehicle data for the module
 # NOTE: This project currently runs fully in-memory (no DB setup),
 # so Module 3 is implemented with in-memory structures.
-vehicles_data = [
-
-    {
-        "registration": "MH01AB1234",
-        "name": "Tata Ace",
-        "type": "Mini Truck",
-        "capacity": "1200 kg",
-        "fuel_type": "Diesel",
-        "odometer": 45520,
-        "purchase_date": "2022-03-15",
-        "status": "Active",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "GJ05CD7890",
-        "name": "Eicher Pro",
-        "type": "Truck",
-        "capacity": "16000 kg",
-        "fuel_type": "Diesel",
-        "odometer": 82310,
-        "purchase_date": "2021-08-07",
-        "status": "On Trip",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "MH12XY5678",
-        "name": "Ashok Leyland",
-        "type": "Truck",
-        "capacity": "18000 kg",
-        "fuel_type": "Diesel",
-        "odometer": 102430,
-        "purchase_date": "2020-11-02",
-        "status": "Maintenance",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "GJ01PQ1111",
-        "name": "Mahindra Bolero",
-        "type": "Pickup",
-        "capacity": "900 kg",
-        "fuel_type": "Diesel",
-        "odometer": 36890,
-        "purchase_date": "2023-01-19",
-        "status": "Active",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "MH14KL2222",
-        "name": "BharatBenz",
-        "type": "Trailer",
-        "capacity": "24000 kg",
-        "fuel_type": "Diesel",
-        "odometer": 145000,
-        "purchase_date": "2022-06-28",
-        "status": "Active",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "GJ18UV3333",
-        "name": "Tata Intra",
-        "type": "Pickup",
-        "capacity": "1000 kg",
-        "fuel_type": "CNG",
-        "odometer": 27500,
-        "purchase_date": "2019-09-14",
-        "status": "Inactive",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "MH20RS4444",
-        "name": "Force Traveller",
-        "type": "Van",
-        "capacity": "1800 kg",
-        "fuel_type": "Diesel",
-        "odometer": 63800,
-        "purchase_date": "2018-04-22",
-        "status": "Active",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-    {
-        "registration": "GJ06LM5555",
-        "name": "Tata Prima",
-        "type": "Truck",
-        "capacity": "20000 kg",
-        "fuel_type": "Diesel",
-        "odometer": 118500,
-        "purchase_date": "2024-02-03",
-        "status": "On Trip",
-        "driver_name": "Rahul",
-        "trip_id": "TR102",
-    },
-]
-
-
 
 
 @app.route("/", methods=["GET", "POST"])
@@ -148,12 +69,7 @@ def settings():
 @app.route("/dashboard")
 def dashboard():
     """Render the dashboard layout after login."""
-    kpis = {
-        "active_vehicles": 124,
-        "drivers": 87,
-        "active_trips": 56,
-        "maintenance_vehicles": 9,
-    }
+    kpis = get_dashboard_stats()
 
     activities = [
         {"time": "08:15 AM", "text": "Route 12 started from Central Hub."},
@@ -166,16 +82,35 @@ def dashboard():
 
 @app.route("/vehicles")
 def vehicles():
-    """Render the vehicle management page with sample data."""
-    vehicle_types = sorted({v.get("type", "").strip() for v in vehicles_data if v.get("type", "").strip()})
+
+    db_vehicles = get_all_vehicles()
+
+    vehicles = get_vehicles_data()
+
+    for v in db_vehicles:
+        vehicles.append({
+            "registration": v["registration_number"],
+            "name": v["vehicle_name"],
+            "type": v["vehicle_type"],
+            "capacity": f'{v["capacity"]} kg',
+            "fuel_type": v["fuel_type"],
+            "odometer": v["odometer"],
+            "purchase_date": str(v["purchase_date"]),
+            "status": v["status"],
+            "driver_name": "",
+            "trip_id": ""
+        })
+
+    vehicle_types = sorted(
+        {v["type"] for v in vehicles}
+    )
 
     return render_template(
         "vehicles.html",
-        vehicles=vehicles_data,
+        vehicles=vehicles,
         vehicle_types=vehicle_types,
         active_page="vehicles",
     )
-
 
 @app.route("/save_vehicle", methods=["POST"])
 def save_vehicle():
@@ -426,9 +361,58 @@ def _sync_driver_vehicle_assignment(driver: dict, previous_vehicle_registration:
         driver["availability"] = "Inactive"
 
 
+maintenance_data = [
+
+    {
+        "service_id": "MS1001",
+        "vehicle": "MH01AB1234",
+        "vehicle_name": "Tata Ace",
+        "service_type": "Oil Change",
+        "mechanic_name": "Ravi Garage",
+        "service_date": "2026-07-01",
+        "estimated_cost": 2500,
+        "notes": "Regular preventive maintenance.",
+        "status": "Scheduled",
+    },
+    {
+        "service_id": "MS1002",
+        "vehicle": "GJ05CD7890",
+        "vehicle_name": "Eicher Pro",
+        "service_type": "Brake Inspection",
+        "mechanic_name": "Speed Motors",
+        "service_date": "2026-06-20",
+        "estimated_cost": 4500,
+        "notes": "Brake pads inspection and lubrication.",
+        "status": "Completed",
+    },
+    {
+        "service_id": "MS1003",
+        "vehicle": "MH12XY5678",
+        "vehicle_name": "Ashok Leyland",
+        "service_type": "Engine Service",
+        "mechanic_name": "Sai Auto Works",
+        "service_date": "2026-05-10",
+        "estimated_cost": 12000,
+        "notes": "Engine diagnostics and service package.",
+        "status": "Overdue",
+    },
+    {
+        "service_id": "MS1004",
+        "vehicle": "GJ01PQ1111",
+        "vehicle_name": "Mahindra Bolero",
+        "service_type": "Tyre Replacement",
+        "mechanic_name": "JK Tyres",
+        "service_date": "2026-07-15",
+        "estimated_cost": 18000,
+        "notes": "Tyre replacement and alignment.",
+        "status": "In Progress",
+    },
+]
+
 trips_data = [
 
     {
+
         "trip_id": "TR100",
         "pickup_location": "Central Hub",
         "destination": "Airport Terminal 2",
@@ -536,7 +520,13 @@ trips_data = [
 
 @app.route("/drivers")
 def drivers():
-    vehicle_registrations = [v.get("registration") for v in vehicles_data]
+
+    vehicles_data = get_vehicles_data()
+
+    vehicle_registrations = [
+        v.get("registration") for v in vehicles_data
+    ]
+
     return render_template(
         "drivers.html",
         drivers=drivers_data,
@@ -652,20 +642,17 @@ def delete_driver():
 
 @app.route("/trips")
 def trips():
-    """Trip management page (in-memory module, no DB)."""
-    global trips_data
 
-    # Routes for filter dropdown
+    vehicles_data = get_vehicles_data()
+
     routes = sorted({t.get("route", "").strip() for t in trips_data if t.get("route", "").strip()})
 
-    # KPIs (simple business logic based on date + status)
     today_date = __import__("datetime").date.today()
 
     def parse_departure_date(iso):
-        # expecting YYYY-MM-DD
         try:
             return __import__("datetime").date.fromisoformat(iso)
-        except Exception:
+        except:
             return None
 
     trips_today = sum(1 for t in trips_data if parse_departure_date(t.get("departure_date")) == today_date and t.get("status") != "Cancelled")
@@ -673,31 +660,9 @@ def trips():
     on_trip = sum(1 for t in trips_data if t.get("status") == "On Trip")
     completed = sum(1 for t in trips_data if t.get("status") == "Completed")
 
-    # Expand driver name + vehicle registration directly from stored fields
-    # Ensure required keys exist for template.
-    normalized = []
-    for t in trips_data:
-        driver_name = t.get("driver_name")
-        vehicle_reg = t.get("vehicle_registration")
-        normalized.append(
-            {
-                "trip_id": t.get("trip_id"),
-                "pickup_location": t.get("pickup_location"),
-                "destination": t.get("destination"),
-                "driver_name": driver_name,
-                "vehicle_registration": vehicle_reg,
-                "route": t.get("route"),
-                "departure_date": t.get("departure_date"),
-                "departure_time": t.get("departure_time"),
-                "expected_arrival": t.get("expected_arrival"),
-                "distance_km": t.get("distance_km"),
-                "status": t.get("status"),
-            }
-        )
-
     return render_template(
         "trips.html",
-        trips=normalized,
+        trips=trips_data,
         routes=routes,
         drivers=drivers_data,
         vehicles=vehicles_data,
@@ -715,7 +680,7 @@ def trips():
 def save_trip():
     """Add/edit trip in memory."""
     global trips_data
-
+    vehicles_data = get_vehicles_data()
     mode = request.form.get("mode")
     original_trip_id = request.form.get("original_trip_id", "").strip()
 
@@ -821,7 +786,482 @@ def delete_trip():
     return redirect(url_for("trips"))
 
 
+@app.route("/maintenance")
+def maintenance():
+
+    vehicles_data = get_vehicles_data()
+
+    vehicle_registrations = sorted(
+        {v.get("registration") for v in vehicles_data if v.get("registration")}
+    )
+
+    service_types = sorted(
+        {m.get("service_type","").strip() for m in maintenance_data if m.get("service_type","").strip()}
+    )
+
+    status_values = sorted(
+        {m.get("status","").strip() for m in maintenance_data if m.get("status","").strip()}
+    )
+
+    total_services = len(maintenance_data)
+    scheduled = sum(1 for m in maintenance_data if m["status"]=="Scheduled")
+    completed = sum(1 for m in maintenance_data if m["status"]=="Completed")
+    overdue = sum(1 for m in maintenance_data if m["status"]=="Overdue")
+
+    return render_template(
+        "maintenance.html",
+        maintenance=maintenance_data,
+        vehicles=vehicles_data,
+        vehicle_registrations=vehicle_registrations,
+        service_types=service_types,
+        status_values=status_values,
+        kpis={
+            "total_services": total_services,
+            "scheduled": scheduled,
+            "completed": completed,
+            "overdue": overdue,
+        },
+        active_page="maintenance",
+    )
+
+
+@app.route("/save_maintenance", methods=["POST"])
+def save_maintenance():
+    """Add/Edit maintenance service in memory."""
+    global maintenance_data
+    vehicles_data = get_vehicles_data()
+    mode = request.form.get("mode")
+    original_service_id = request.form.get("original_service_id", "").strip()
+
+    service_id = request.form.get("service_id", "").strip()
+    vehicle_registration = request.form.get("vehicle", "").strip()
+    service_type = request.form.get("service_type", "").strip()
+    mechanic_name = request.form.get("mechanic_name", "").strip()
+    service_date = request.form.get("service_date", "").strip()
+    estimated_cost_raw = request.form.get("estimated_cost", "").strip()
+    notes = request.form.get("notes", "").strip()
+    status = request.form.get("status", "Scheduled").strip()
+
+    valid_statuses = {"Scheduled", "In Progress", "Completed", "Overdue"}
+    if status not in valid_statuses:
+        flash("Invalid maintenance status.", "danger")
+        return redirect(url_for("maintenance"))
+
+    if not service_id:
+        flash("Service ID is required.", "danger")
+        return redirect(url_for("maintenance"))
+
+    if not vehicle_registration or not any(v.get("registration") == vehicle_registration for v in vehicles_data):
+        flash("Selected vehicle is invalid.", "danger")
+        return redirect(url_for("maintenance"))
+
+    if not service_type:
+        flash("Service Type is required.", "danger")
+        return redirect(url_for("maintenance"))
+
+    if not mechanic_name:
+        flash("Mechanic Name is required.", "danger")
+        return redirect(url_for("maintenance"))
+
+    if not service_date:
+        flash("Service Date is required.", "danger")
+        return redirect(url_for("maintenance"))
+
+    try:
+        # Accept values like 2500 or ₹2500
+        cleaned = estimated_cost_raw.replace("₹", "").replace(",", "").strip()
+        estimated_cost_num = int(float(cleaned))
+        if estimated_cost_num < 0:
+            raise ValueError()
+    except Exception:
+        flash("Estimated Cost must be numeric.", "danger")
+        return redirect(url_for("maintenance"))
+
+    # Uniqueness rule for add
+    if mode == "add" and any(m.get("service_id") == service_id for m in maintenance_data):
+        flash("Service ID must be unique.", "danger")
+        return redirect(url_for("maintenance"))
+
+    vehicle_obj = next((v for v in vehicles_data if v.get("registration") == vehicle_registration), None)
+    vehicle_display = vehicle_registration
+
+    if mode == "edit":
+        target = None
+        for m in maintenance_data:
+            if m.get("service_id") == original_service_id:
+                target = m
+                break
+        if not target:
+            flash("Maintenance record not found.", "danger")
+            return redirect(url_for("maintenance"))
+
+        # If changing service_id, ensure uniqueness
+        if service_id != original_service_id and any(m.get("service_id") == service_id for m in maintenance_data):
+            flash("Service ID must be unique.", "danger")
+            return redirect(url_for("maintenance"))
+
+        target.update(
+            {
+                "service_id": service_id,
+                "vehicle": vehicle_display,
+                "vehicle_name": vehicle_obj.get("name") if vehicle_obj else None,
+                "service_type": service_type,
+                "mechanic_name": mechanic_name,
+                "service_date": service_date,
+                "estimated_cost": estimated_cost_num,
+                "notes": notes,
+                "status": status,
+            }
+        )
+        flash("Maintenance record updated successfully.", "success")
+        return redirect(url_for("maintenance"))
+
+    # add
+    maintenance_data.append(
+        {
+            "service_id": service_id,
+            "vehicle": vehicle_display,
+            "vehicle_name": vehicle_obj.get("name") if vehicle_obj else None,
+            "service_type": service_type,
+            "mechanic_name": mechanic_name,
+            "service_date": service_date,
+            "estimated_cost": estimated_cost_num,
+            "notes": notes,
+            "status": status,
+        }
+    )
+    flash("Maintenance record created successfully.", "success")
+    return redirect(url_for("maintenance"))
+
+
+@app.route("/delete_maintenance", methods=["POST"])
+def delete_maintenance():
+    global maintenance_data
+    service_id = request.form.get("service_id", "").strip()
+    maintenance_data = [m for m in maintenance_data if m.get("service_id") != service_id]
+    flash("Maintenance record deleted successfully.", "success")
+    return redirect(url_for("maintenance"))
+
+
+# ----------------------
+# Fuel Management
+# ----------------------
+
+fuel_logs_data = [
+    {
+        "log_id": "FL1001",
+        "vehicle": "MH01AB1234",
+        "driver": "Rahul Sharma",
+        "fuel_type": "Diesel",
+        "fuel_quantity": "42L",
+        "cost": 3950,
+        "mileage": "14 km/L",
+        "fuel_station": "Indian Oil",
+        "fuel_date": "2026-07-12",
+        "current_odometer": 45520,
+        "remarks": "",
+    },
+    {
+        "log_id": "FL1002",
+        "vehicle": "GJ05CD7890",
+        "driver": "Priya Patel",
+        "fuel_type": "Diesel",
+        "fuel_quantity": "65L",
+        "cost": 6100,
+        "mileage": "13 km/L",
+        "fuel_station": "HP Petrol Pump",
+        "fuel_date": "2026-07-13",
+        "current_odometer": 82310,
+        "remarks": "",
+    },
+    {
+        "log_id": "FL1003",
+        "vehicle": "MH20RS4444",
+        "driver": "Amit Singh",
+        "fuel_type": "Diesel",
+        "fuel_quantity": "38L",
+        "cost": 3520,
+        "mileage": "15 km/L",
+        "fuel_station": "Bharat Petroleum",
+        "fuel_date": "2026-07-12",
+        "current_odometer": 63800,
+        "remarks": "",
+    },
+    {
+        "log_id": "FL1004",
+        "vehicle": "GJ18UV3333",
+        "driver": "Riya Shah",
+        "fuel_type": "CNG",
+        "fuel_quantity": "18kg",
+        "cost": 1420,
+        "mileage": "20 km/kg",
+        "fuel_station": "Adani CNG",
+        "fuel_date": "2026-07-12",
+        "current_odometer": 27500,
+        "remarks": "",
+    },
+]
+
+
+def _parse_numeric_from_mileage(mileage_str: str):
+    """Extract first numeric token from mileage string like '14 km/L' -> 14."""
+    if not mileage_str:
+        return None
+    try:
+        cleaned = str(mileage_str).strip().replace(",", "")
+        # take leading number part
+        num = ""
+        for ch in cleaned:
+            if ch.isdigit() or ch == '.':
+                num += ch
+            elif num:
+                break
+        return float(num) if num else None
+    except Exception:
+        return None
+
+
+@app.route("/reports")
+def reports():
+
+    vehicles_data = get_vehicles_data()
+
+    vehicle_list = vehicles_data
+
+    top_drivers = [
+        {"driver":"Rahul Sharma","trips":42,"distance_km":1860,"rating":4.8},
+        {"driver":"Priya Patel","trips":35,"distance_km":1535,"rating":4.6},
+        {"driver":"Neha Verma","trips":31,"distance_km":1402,"rating":4.7},
+        {"driver":"Amit Singh","trips":28,"distance_km":1219,"rating":4.4},
+    ]
+
+    most_used_vehicles = [
+        {"vehicle":"MH01AB1234 - Tata Ace","trips":26,"distance_km":1140,"fuel_cost":40250},
+        {"vehicle":"GJ05CD7890 - Eicher Pro","trips":22,"distance_km":980,"fuel_cost":36780},
+        {"vehicle":"GJ01PQ1111 - Mahindra Bolero","trips":19,"distance_km":820,"fuel_cost":28940},
+        {"vehicle":"MH14KL2222 - BharatBenz","trips":17,"distance_km":760,"fuel_cost":25120},
+    ]
+
+    return render_template(
+        "reports_analytics.html",
+        vehicles=vehicle_list,
+        top_drivers=top_drivers,
+        most_used_vehicles=most_used_vehicles,
+        active_page="reports",
+    )
+
+
+@app.route("/fuel")
+
+def fuel():
+    global fuel_logs_data
+    vehicles_data = get_vehicles_data()
+    vehicle_registrations = sorted({v.get("registration") for v in vehicles_data if v.get("registration")})
+    driver_names = sorted({d.get("full_name") for d in drivers_data if d.get("full_name")})
+
+    fuel_types = sorted({f.get("fuel_type", "").strip() for f in fuel_logs_data if f.get("fuel_type", "").strip()})
+
+    fuel_dates = sorted({f.get("fuel_date") for f in fuel_logs_data if f.get("fuel_date")})
+
+    total_cost = sum(float(f.get("cost") or 0) for f in fuel_logs_data)
+    fuel_entries = len(fuel_logs_data)
+
+    mileage_nums = [_parse_numeric_from_mileage(f.get("mileage")) for f in fuel_logs_data]
+    mileage_nums = [m for m in mileage_nums if m is not None]
+
+    avg_mileage = round(sum(mileage_nums) / len(mileage_nums), 2) if mileage_nums else 0
+    avg_cost = round(total_cost / fuel_entries, 2) if fuel_entries else 0
+
+    # Normalize for template display (keep ₹ as integers if possible)
+    def fmt_intish(x):
+        try:
+            xf = float(x)
+            if xf.is_integer():
+                return int(xf)
+            return xf
+        except Exception:
+            return x
+
+    fuel_logs_norm = []
+    for f in fuel_logs_data:
+        fuel_logs_norm.append(
+            {
+                "log_id": f.get("log_id"),
+                "vehicle": f.get("vehicle"),
+                "driver": f.get("driver"),
+                "fuel_type": f.get("fuel_type"),
+                "fuel_quantity": f.get("fuel_quantity"),
+                "cost": fmt_intish(f.get("cost")),
+                "mileage": f.get("mileage"),
+                "fuel_station": f.get("fuel_station"),
+                "fuel_date": f.get("fuel_date"),
+                "remarks": f.get("remarks"),
+            }
+        )
+
+    return render_template(
+        "fuel.html",
+        fuel_logs=fuel_logs_norm,
+        kpis={
+            "total_fuel_cost": fmt_intish(total_cost),
+            "fuel_entries": fuel_entries,
+            "avg_mileage": avg_mileage,
+            "avg_cost": fmt_intish(avg_cost),
+        },
+        fuel_types=fuel_types,
+        fuel_dates=fuel_dates,
+        vehicle_registrations=vehicle_registrations,
+        driver_names=driver_names,
+        active_page="fuel",
+    )
+
+
+@app.route("/save_fuel", methods=["POST"])
+def save_fuel():
+    global fuel_logs_data
+    vehicles_data = get_vehicles_data()
+    mode = request.form.get("mode")
+    original_log_id = (request.form.get("original_log_id") or "").strip()
+
+    log_id = (request.form.get("log_id") or "").strip()  # may be filled in edit mode by JS
+
+    vehicle = (request.form.get("vehicle") or "").strip()
+    driver = (request.form.get("driver") or "").strip()
+    fuel_type = (request.form.get("fuel_type") or "").strip()
+    fuel_quantity = (request.form.get("fuel_quantity") or "").strip()
+    fuel_cost_raw = (request.form.get("fuel_cost") or "").strip()
+    current_odometer_raw = (request.form.get("current_odometer") or "").strip()
+    fuel_station = (request.form.get("fuel_station") or "").strip()
+    fuel_date = (request.form.get("fuel_date") or "").strip()
+    remarks = (request.form.get("remarks") or "").strip()
+
+    # For add we require log id to keep uniqueness; if missing, auto-generate.
+    if mode == "add":
+        if not log_id:
+            # generate next id by prefix FL + 4 digits
+            existing = []
+            for f in fuel_logs_data:
+                lid = f.get("log_id", "")
+                if isinstance(lid, str) and lid.startswith("FL"):
+                    try:
+                        existing.append(int(lid.replace("FL", "")))
+                    except Exception:
+                        pass
+            next_num = (max(existing) + 1) if existing else 1001
+            log_id = f"FL{next_num}"
+
+    if not log_id:
+        flash("Log ID is required.", "danger")
+        return redirect(url_for("fuel"))
+
+    if not vehicle or not driver or not fuel_type or not fuel_quantity or not fuel_cost_raw or not fuel_station or not fuel_date:
+        flash("Required fields are missing.", "danger")
+        return redirect(url_for("fuel"))
+
+    valid_vehicle = any(v.get("registration") == vehicle for v in vehicles_data)
+    valid_driver = any(d.get("full_name") == driver for d in drivers_data)
+    if not valid_vehicle:
+        flash("Selected vehicle not found.", "danger")
+        return redirect(url_for("fuel"))
+    if not valid_driver:
+        flash("Selected driver not found.", "danger")
+        return redirect(url_for("fuel"))
+
+    try:
+        cleaned_cost = fuel_cost_raw.replace("₹", "").replace(",", "").strip()
+        fuel_cost_num = float(cleaned_cost)
+        if fuel_cost_num < 0:
+            raise ValueError()
+    except Exception:
+        flash("Fuel Cost must be numeric.", "danger")
+        return redirect(url_for("fuel"))
+
+    try:
+        current_odometer_num = float(current_odometer_raw)
+    except Exception:
+        flash("Current Odometer must be numeric.", "danger")
+        return redirect(url_for("fuel"))
+
+    # Uniqueness for add
+    if mode == "add" and any(f.get("log_id") == log_id for f in fuel_logs_data):
+        flash("Log ID must be unique.", "danger")
+        return redirect(url_for("fuel"))
+
+    # mileage is display-only; we compute a simple estimate based on logs if possible.
+    # since the form doesn't request mileage directly, reuse last known mileage for the selected vehicle.
+    last_mileage = None
+    for f in reversed(fuel_logs_data):
+        if f.get("vehicle") == vehicle and f.get("fuel_type") == fuel_type:
+            last_mileage = f.get("mileage")
+            break
+    if not last_mileage:
+        # fallback generic
+        last_mileage = "0"
+
+    if mode == "edit":
+        target = None
+        for f in fuel_logs_data:
+            if f.get("log_id") == original_log_id:
+                target = f
+                break
+        if not target:
+            flash("Fuel log record not found.", "danger")
+            return redirect(url_for("fuel"))
+
+        # update
+        target.update(
+            {
+                "log_id": log_id,
+                "vehicle": vehicle,
+                "driver": driver,
+                "fuel_type": fuel_type,
+                "fuel_quantity": fuel_quantity,
+                "cost": fuel_cost_num,
+                "current_odometer": current_odometer_num,
+                "fuel_station": fuel_station,
+                "fuel_date": fuel_date,
+                "remarks": remarks,
+                "mileage": last_mileage,
+            }
+        )
+
+        flash("Fuel log updated successfully.", "success")
+        return redirect(url_for("fuel"))
+
+    # add mode
+    fuel_logs_data.append(
+        {
+            "log_id": log_id,
+            "vehicle": vehicle,
+            "driver": driver,
+            "fuel_type": fuel_type,
+            "fuel_quantity": fuel_quantity,
+            "cost": fuel_cost_num,
+            "mileage": last_mileage,
+            "fuel_station": fuel_station,
+            "fuel_date": fuel_date,
+            "current_odometer": current_odometer_num,
+            "remarks": remarks,
+        }
+    )
+
+    flash("Fuel log created successfully.", "success")
+    return redirect(url_for("fuel"))
+
+
+@app.route("/delete_fuel", methods=["POST"])
+def delete_fuel():
+    global fuel_logs_data
+    log_id = (request.form.get("log_id") or "").strip()
+    fuel_logs_data = [f for f in fuel_logs_data if f.get("log_id") != log_id]
+    flash("Fuel log deleted successfully.", "success")
+    return redirect(url_for("fuel"))
+
+
 if __name__ == "__main__":
     app.run(debug=True)
+
+
+
 
 

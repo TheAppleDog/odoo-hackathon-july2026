@@ -189,6 +189,7 @@ multidict @ file:///C:/b/abs_44ido987fv/croot/multidict_1701097803486/work
 multipledispatch @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/multipledispatch_1699473951974/work
 mypy @ file:///C:/b/abs_66qgae7agv/croot/mypy-split_1718008473940/work
 mypy-extensions @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/mypy_extensions_1699482634516/work
+mysql-connector-python==9.7.0
 navigator-updater @ file:///C:/miniconda3/conda-bld/navigator-updater_1761563278081/work
 nbclient @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/nbclient_1701796752236/work
 nbconvert @ file:///C:/Users/dev-admin/perseverance-python-buildout/croot/nbconvert_1701806279884/work

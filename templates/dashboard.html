@@ -46,12 +46,23 @@ Fleet Overview</h2>
 
 <div class="right">
 
-<div class="card">
+<div class="card quick-actions">  
 <h3>Quick Actions</h3>
-<button class="purple">➕ Add Vehicle</button>
-<button class="purple">👨 Add Driver</button>
-<button class="purple">📦 Create Trip</button>
-<button class="purple">🔧 Maintenance</button>
+<button onclick="location.href='{{ url_for('vehicles') }}'">
+    ➕ Add Vehicle
+</button>
+
+<button onclick="location.href='{{ url_for('drivers') }}'">
+    👨 Add Driver
+</button>
+
+<button onclick="location.href='{{ url_for('trips') }}'">
+    📦 Create Trip
+</button>
+
+<button onclick="location.href='{{ url_for('maintenance') }}'">
+    🔧 Maintenance
+</button>
 </div>
 
 <div class="card">

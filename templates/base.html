@@ -43,11 +43,15 @@
         </a>
 
 
-        <a href="#" class="sidebar-link">
+        <a href="{{ url_for('maintenance') }}" class="sidebar-link {% if active_page == 'maintenance' %}active{% endif %}">
           <i data-lucide="wrench"></i>
           <span>Maintenance</span>
         </a>
-        <a href="#" class="sidebar-link">
+        <a href="{{ url_for('fuel') }}" class="sidebar-link {% if active_page == 'fuel' %}active{% endif %}">
+          <i data-lucide="droplet"></i>
+          <span>Fuel Management</span>
+        </a>
+        <a href="{{ url_for('reports') }}" class="sidebar-link {% if active_page == 'reports' %}active{% endif %}">
           <i data-lucide="bar-chart-2"></i>
           <span>Reports</span>
         </a>
@@ -61,7 +65,7 @@
     <main class="dashboard-content">
       <div class="global-topbar">
         <div class="global-search">
-          <input id="globalSearch" type="text" placeholder="Search Vehicle #, Driver Name, Trip ID..." />
+          <span>
         </div>
 
         <div class="global-actions">

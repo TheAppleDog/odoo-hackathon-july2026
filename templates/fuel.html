@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fuel.css') }}" />
+{% block title %}Fuel Management{% endblock %}
+
+{% block content %}
+  <div class="dashboard-page">
+    <header class="fuel-page-header">
+      <div class="fuel-title-block">
+        <div class="fuel-title-row">
+          <h1>Fuel Management</h1>
+          <button id="addFuelBtn" class="btn-primary btn-compact fuel-add-btn" type="button">+ Add Fuel Log</button>
+        </div>
+        <p>Track fuel consumption and operational expenses.</p>
+      </div>
+    </header>
+
+
+
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+      {% if messages %}
+        <div class="alert-inline" style="margin-top:10px;">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <div class="kpis" style="margin-top: 8px;">
+      <div class="card">
+        <span>₹</span>
+        <h2>₹{{ kpis.total_fuel_cost }}</h2>
+        <p>Total Fuel Cost</p>
+      </div>
+      <div class="card">
+        <span>🧾</span>
+        <h2>{{ kpis.fuel_entries }}</h2>
+        <p>Fuel Entries</p>
+      </div>
+      <div class="card">
+        <span>📈</span>
+        <h2>{{ kpis.avg_mileage }}</h2>
+        <p>Average Mileage</p>
+      </div>
+      <div class="card">
+        <span>💰</span>
+        <h2>₹{{ kpis.avg_cost }}</h2>
+        <p>Average Cost</p>
+      </div>
+    </div>
+
+    <section class="table-card">
+      <div class="table-white-surface fuel-white-container">
+        <div class="vehicle-filters-row compact-wrapper fuel-filters-wrapper" style="margin-top:0;">
+          <div class="fuel-filters" role="group" aria-label="Fuel filters">
+
+              <div class="search-box">
+                <input id="fuelSearchInput" type="text" placeholder="🔍 Search Vehicle..." />
+              </div>
+
+              <div class="status-filter">
+                <select id="fuelTypeFilter" aria-label="Fuel Type">
+                  <option value="all">Fuel Type ▼</option>
+                  {% for ft in fuel_types %}
+                    <option value="{{ ft|lower }}">{{ ft }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="status-filter">
+                <select id="fuelDateFilter" aria-label="Fuel Date">
+                  <option value="all">Date ▼</option>
+                  {% for d in fuel_dates %}
+                    <option value="{{ d }}">{{ d }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+        </div>
+
+        <div id="fuelEmptyState" class="vehicle-empty hidden">
+          <div class="vehicle-empty-icon">🧾</div>
+          <div class="vehicle-empty-title">No Fuel Logs Found</div>
+          <div class="vehicle-empty-sub">Try adjusting your filters.</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="fuel-table" aria-describedby="fuelEmptyState">
+            <thead>
+              <tr>
+                <th>Log ID</th>
+                <th>Vehicle</th>
+                <th>Driver</th>
+                <th class="fuel-type-col">Fuel Type</th>
+                <th class="fuel-qty-col">Fuel Quantity</th>
+                <th>Cost</th>
+                <th>Mileage</th>
+                <th>Fuel Station</th>
+                <th>Date</th>
+                <th class="actions-col">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="fuelTableBody">
+              {% for f in fuel_logs %}
+                <tr
+                  data-log-id="{{ f.log_id }}"
+                  data-vehicle="{{ f.vehicle }}"
+                  data-driver="{{ f.driver }}"
+                  data-fuel-type="{{ f.fuel_type|lower }}"
+                  data-date="{{ f.fuel_date }}"
+                  data-matches-filtered="true"
+                >
+                  <td>{{ f.log_id }}</td>
+                  <td>{{ f.vehicle }}</td>
+                  <td>{{ f.driver }}</td>
+                  <td class="fuel-type-col">{{ f.fuel_type }}</td>
+                  <td class="fuel-qty-col">{{ f.fuel_quantity }}</td>
+                  <td>₹{{ f.cost }}</td>
+                  <td>{{ f.mileage }}</td>
+                  <td>{{ f.fuel_station }}</td>
+                  <td>{{ f.fuel_date }}</td>
+                  <td class="action-cell">
+                    <button type="button" class="btn-outline-secondary btn-small edit-fuel-btn" data-log-id="{{ f.log_id }}" aria-label="Edit fuel log" title="Edit">
+                      ✏
+                    </button>
+                    <button type="button" class="btn-outline-danger btn-small delete-fuel-btn" data-log-id="{{ f.log_id }}" aria-label="Delete fuel log" title="Delete">
+                      🗑
+                    </button>
+                  </td>
+
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="driver-pagination" aria-label="Fuel table pagination">
+          <div class="pagination-meta" id="fuelPaginationMeta">Showing 1–4 of 0 Fuel Logs</div>
+          <div class="pagination-controls">
+            <button type="button" class="btn-secondary btn-small" id="fuelPrevPageBtn" disabled>Previous</button>
+            <button type="button" class="btn-secondary btn-small" id="fuelNextPageBtn" disabled>Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# Add/Edit Fuel Modal #}
+    <div class="modal-overlay hidden" id="fuelModal">
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="fuelModalTitle">
+        <div class="modal-header">
+          <h2 id="fuelModalTitle">Add Fuel Log</h2>
+          <button type="button" class="modal-close" id="closeFuelModal" aria-label="Close">×</button>
+        </div>
+
+        <form id="fuelForm" method="post" action="{{ url_for('save_fuel') }}">
+          <input type="hidden" id="fuelFormMode" name="mode" value="add" />
+          <input type="hidden" id="originalFuelLogId" name="original_log_id" value="" />
+
+          <div class="modal-grid">
+            <label>
+              Vehicle
+              <select id="fuelVehicle" name="vehicle" required>
+                {% for v in vehicle_registrations %}
+                  <option value="{{ v }}">{{ v }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Driver
+              <select id="fuelDriver" name="driver" required>
+                {% for d in driver_names %}
+                  <option value="{{ d }}">{{ d }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Fuel Type
+              <select id="fuelType" name="fuel_type" required>
+                {% for ft in fuel_types %}
+                  <option value="{{ ft }}">{{ ft }}</option>
+                {% endfor %}
+              </select>
+            </label>
+
+            <label>
+              Fuel Quantity
+              <input type="text" id="fuelQuantity" name="fuel_quantity" required inputmode="numeric" />
+            </label>
+
+            <label>
+              Fuel Cost
+              <input type="text" id="fuelCost" name="fuel_cost" required inputmode="numeric" />
+            </label>
+
+            <label>
+              Current Odometer
+              <input type="text" id="fuelOdometer" name="current_odometer" required inputmode="numeric" />
+            </label>
+
+            <label>
+              Fuel Station
+              <input type="text" id="fuelStation" name="fuel_station" required />
+            </label>
+
+            <label>
+              Fuel Date
+              <input type="date" id="fuelDate" name="fuel_date" required />
+            </label>
+
+            <label style="grid-column: 1 / -1;">
+              Remarks
+              <textarea id="fuelRemarks" name="remarks" rows="3" placeholder="Optional remarks"></textarea>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" id="cancelFuelModal">Cancel</button>
+            <button type="submit" class="btn-primary">Save Fuel Log</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <form id="deleteFuelForm" method="post" action="{{ url_for('delete_fuel') }}" class="hidden">
+      <input type="hidden" name="log_id" id="deleteFuelLogId" />
+    </form>
+
+    {# page specific JS is in static/js/main.js #}
+  </div>
+{% endblock %}
+
