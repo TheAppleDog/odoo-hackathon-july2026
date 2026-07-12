@@ -1,0 +1,220 @@
+{% extends 'base.html' %}
+{% block title %}Trip Management{% endblock %}
+
+{% block content %}
+  <header class="dashboard-header">
+    <div>
+      <h1>🚚 Trip Management</h1>
+      <p>Manage routes, assign drivers and monitor trips.</p>
+    </div>
+
+    <button id="addTripBtn" class="btn-primary btn-compact" type="button">+ Create Trip</button>
+  </header>
+
+  <div class="vehicle-filters-row compact-wrapper">
+    <div class="vehicle-filters compact-filters">
+      <div class="search-box">
+        <input id="tripSearchInput" type="text" placeholder="🔍 Search Trip..." />
+      </div>
+
+      <div class="status-filter">
+        <select id="tripStatusFilter" aria-label="Trip status">
+          <option value="all">Status ▼</option>
+          <option value="scheduled">Scheduled</option>
+          <option value="on trip">On Trip</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      <div class="status-filter">
+        <select id="tripRouteFilter" aria-label="Route">
+          <option value="all">Route ▼</option>
+          {% for r in routes %}
+            <option value="{{ r|lower }}">{{ r }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="alert-inline">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="kpis" style="margin-top: 8px;">
+    <div class="card">
+      <span>📦</span>
+      <h2>{{ kpis.trips_today }}</h2>
+      <p>Trips Today</p>
+    </div>
+    <div class="card">
+      <span>🕒</span>
+      <h2>{{ kpis.scheduled }}</h2>
+      <p>Scheduled</p>
+    </div>
+    <div class="card">
+      <span>🚚</span>
+      <h2>{{ kpis.on_trip }}</h2>
+      <p>On Trip</p>
+    </div>
+    <div class="card">
+      <span>✅</span>
+      <h2>{{ kpis.completed }}</h2>
+      <p>Completed</p>
+    </div>
+  </div>
+
+  <section class="table-card">
+    <div class="table-white-surface">
+      <div id="tripEmptyState" class="vehicle-empty hidden">
+        <div class="vehicle-empty-icon">🧾</div>
+        <div class="vehicle-empty-title">No Trips Found</div>
+        <div class="vehicle-empty-sub">Try adjusting your filters.</div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="vehicle-table trip-table" aria-describedby="tripEmptyState">
+          <thead>
+            <tr>
+              <th>Trip ID</th>
+              <th>Pickup</th>
+              <th>Destination</th>
+              <th>Assigned Driver</th>
+              <th>Assigned Vehicle</th>
+              <th>Departure</th>
+              <th>Arrival</th>
+              <th>Distance</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="tripTableBody">
+            {% for t in trips %}
+              <tr
+                data-trip-id="{{ t.trip_id }}"
+                data-status="{{ t.status|lower }}"
+                data-route="{{ t.route|lower }}"
+              >
+                <td>{{ t.trip_id }}</td>
+                <td>{{ t.pickup_location }}</td>
+                <td>{{ t.destination }}</td>
+                <td>{{ t.driver_name }}</td>
+                <td>{{ t.vehicle_registration }}</td>
+                <td>{{ t.departure_date }} {{ t.departure_time }}</td>
+                <td>{{ t.expected_arrival }}</td>
+                <td>{{ t.distance_km }} km</td>
+                <td>
+                  {% set status_key = t.status|lower|replace(' ','-') %}
+                  <span class="status-pill status-{{ status_key }}">{{ t.status }}</span>
+                </td>
+                <td class="action-cell">
+                  <button type="button" class="btn-secondary btn-small edit-trip-btn" data-trip-id="{{ t.trip_id }}">Edit</button>
+                  <button type="button" class="btn-danger btn-small delete-trip-btn" data-trip-id="{{ t.trip_id }}">Delete</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  {# Add/Edit Trip Modal #}
+  <div class="modal-overlay hidden" id="tripModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="tripModalTitle">
+      <div class="modal-header">
+        <h2 id="tripModalTitle">Add Trip</h2>
+        <button type="button" class="modal-close" id="closeTripModal" aria-label="Close">×</button>
+      </div>
+
+      <form id="tripForm" method="post" action="{{ url_for('save_trip') }}">
+        <input type="hidden" id="tripFormMode" name="mode" value="add" />
+        <input type="hidden" id="originalTripId" name="original_trip_id" value="" />
+
+        <div class="modal-grid">
+          <label>
+            Trip ID
+            <input type="text" id="trip_id" name="trip_id" required />
+          </label>
+
+          <label>
+            Pickup Location
+            <input type="text" id="pickup_location" name="pickup_location" required />
+          </label>
+
+          <label>
+            Destination
+            <input type="text" id="destination" name="destination" required />
+          </label>
+
+          <label>
+            Driver
+            <select id="driver" name="driver" required>
+              {% for d in drivers %}
+                <option value="{{ d.full_name }}">{{ d.full_name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            Vehicle
+            <select id="vehicle" name="vehicle" required>
+              {% for v in vehicles %}
+                <option value="{{ v.registration }}">{{ v.registration }} — {{ v.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            Departure Date
+            <input type="date" id="departure_date" name="departure_date" required />
+          </label>
+
+          <label>
+            Departure Time
+            <input type="time" id="departure_time" name="departure_time" required />
+          </label>
+
+          <label>
+            Expected Arrival
+            <input type="datetime-local" id="expected_arrival" name="expected_arrival" required />
+          </label>
+
+          <label>
+            Distance (km)
+            <input type="number" id="distance_km" name="distance_km" required min="1" step="1" inputmode="numeric" />
+          </label>
+
+          <label>
+            Status
+            <select id="trip_status" name="status" required>
+              <option value="Scheduled">Scheduled</option>
+              <option value="On Trip">On Trip</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelTripModal">Cancel</button>
+          <button type="submit" class="btn-primary">Save Trip</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Delete trip form #}
+  <form id="deleteTripForm" method="post" action="{{ url_for('delete_trip') }}" class="hidden">
+    <input type="hidden" name="trip_id" id="deleteTripId" />
+  </form>
+{% endblock %}
+

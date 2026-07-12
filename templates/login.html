@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TransitOps | Login</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+  <div class="page-shell">
+    <div class="auth-card">
+      <div class="brand-header">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="10" y="24" width="30" height="18" rx="4" fill="#714B67" opacity="0.15"/>
+            <path d="M10 24h30v18H10z" fill="#714B67"/>
+            <path d="M40 30h12l6 8v8H40V30z" fill="#714B67" opacity="0.9"/>
+            <circle cx="18" cy="50" r="6" fill="#714B67"/>
+            <circle cx="46" cy="50" r="6" fill="#714B67"/>
+            <path d="M14 50h8" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            <path d="M42 50h8" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+            <path d="M18 24V18h-6" stroke="#714B67" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <span class="brand-logo">TransitOps</span>
+        <p class="brand-subtitle">Smart Transport Operations Platform</p>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="alert-group">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+      {% endwith %}
+
+      <form action="{{ url_for('login') }}" method="post" class="auth-form">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com" required />
+
+        <label for="password">Password</label>
+        <div class="password-field">
+          <input type="password" id="password" name="password" placeholder="Enter your password" required />
+          <button type="button" class="password-toggle" aria-label="Show or hide password">
+            <span class="toggle-icon">👁️</span>
+          </button>
+        </div>
+
+        <div class="form-row">
+          <label class="checkbox-label">
+            <input type="checkbox" name="remember" />
+            Remember Me
+          </label>
+          <a class="link-muted" href="#">Forgot Password?</a>
+        </div>
+
+        <button type="submit" class="btn-primary">Login</button>
+      </form>
+    </div>
+  </div>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

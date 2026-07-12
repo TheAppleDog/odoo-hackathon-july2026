@@ -1,0 +1,72 @@
+
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="dashboard-page">
+
+<div class="topbar">
+  <h2>Dashboard
+Fleet Overview</h2>
+</div>
+
+<div class="kpis">
+  <div class="card"><span>🚚</span><h2>{{kpis.active_vehicles}}</h2><p>Active Vehicles</p></div>
+  <div class="card"><span>👨</span><h2>{{kpis.drivers}}</h2><p>Drivers</p></div>
+  <div class="card"><span>📦</span><h2>{{kpis.active_trips}}</h2><p>Trips</p></div>
+  <div class="card"><span>🔧</span><h2>{{kpis.maintenance_vehicles}}</h2><p>Maintenance</p></div>
+</div>
+
+<div class="main-grid">
+
+<div class="left">
+
+<div class="chart-grid">
+<div class="card">
+<h3>Fleet Utilization</h3>
+<canvas id="fleetUtilizationChart"></canvas>
+</div>
+
+<div class="card">
+<h3>Vehicle Status</h3>
+<canvas id="vehicleStatusChart"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h3>Recent Activities</h3>
+{% for activity in activities %}
+<div class="activity">
+<b>{{activity.time}}</b>
+<span>{{activity.text}}</span>
+</div>
+{% endfor %}
+</div>
+
+</div>
+
+<div class="right">
+
+<div class="card">
+<h3>Quick Actions</h3>
+<button class="purple">➕ Add Vehicle</button>
+<button class="purple">👨 Add Driver</button>
+<button class="purple">📦 Create Trip</button>
+<button class="purple">🔧 Maintenance</button>
+</div>
+
+<div class="card">
+<h3>Today's Alerts</h3>
+<ul>
+<li>Vehicle due for maintenance</li>
+<li>Driver license expires soon</li>
+<li>Pending trips</li>
+<li>Fuel logs pending</li>
+</ul>
+</div>
+
+</div>
+
+</div>
+
+</div>
+{% endblock %}

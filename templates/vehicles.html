@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Vehicle Management{% endblock %}
+
+{% block content %}
+  <header class="dashboard-header">
+    <div class="vehicle-header-left">
+      <h1>🚚 Vehicle Management</h1>
+      <p>Manage your fleet efficiently</p>
+    </div>
+
+    <button id="addVehicleBtn" class="btn-primary btn-compact" type="button">
+      + Add Vehicle
+    </button>
+  </header>
+
+  <div class="vehicle-filters-row compact-wrapper">
+
+    <div class="vehicle-filters compact-filters">
+
+      <div class="search-box">
+        <input id="searchInput" type="text" placeholder="🔍 Search Vehicle..." />
+      </div>
+
+      <div class="status-filter">
+        <select id="typeFilter" aria-label="Vehicle type">
+          <option value="all">Vehicle Type ▼</option>
+          {% for t in vehicle_types %}
+            <option value="{{ t|lower }}">{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="status-filter">
+        <select id="statusFilter" aria-label="Vehicle status">
+          <option value="all">Status ▼</option>
+          <option value="active">Active</option>
+          <option value="on trip">On Trip</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+    </div>
+
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="alert-inline">
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <section class="table-card">
+    <div class="table-white-surface">
+
+    <div id="vehicleEmptyState" class="vehicle-empty hidden">
+      <div class="vehicle-empty-icon">🚚</div>
+      <div class="vehicle-empty-title">No Vehicles Found</div>
+      <div class="vehicle-empty-sub">Click <b>+ Add Vehicle</b> to create one.</div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="vehicle-table" aria-describedby="vehicleEmptyState">
+        <thead>
+          <tr>
+            <th>Registration Number</th>
+            <th>Vehicle Name</th>
+            <th>Vehicle Type</th>
+            <th>Capacity</th>
+            <th>Fuel Type</th>
+            <th>Current Odometer</th>
+            <th>Status</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+
+        <tbody id="vehicleTableBody">
+          {% for vehicle in vehicles %}
+            <tr
+              data-registration="{{ vehicle.registration }}"
+              data-status="{{ vehicle.status|lower }}"
+              data-type="{{ vehicle.type|lower }}"
+              data-driver="{{ vehicle.driver_name or 'Rahul' }}"
+              data-trip-id="{{ vehicle.trip_id or 'TR102' }}"
+            >
+              {# NOTE: JS uses these cell indices for edit mode.
+                 Indices: 0 reg,1 name,2 type,3 capacity,4 fuel,5 odometer,6 status #}
+              <td>{{ vehicle.registration }}</td>
+              <td>{{ vehicle.name }}</td>
+              <td>{{ vehicle.type }}</td>
+              <td>{{ vehicle.capacity }}</td>
+              <td>{{ vehicle.fuel_type }}</td>
+              <td>{{ vehicle.odometer }}</td>
+              <td>
+                {% set status_key = vehicle.status|lower|replace(' ','-') %}
+                <span class="status-pill status-{{ status_key }}">{{ vehicle.status }}</span>
+              </td>
+
+              <td class="action-cell">
+                <button type="button" class="btn-secondary btn-small edit-btn" data-registration="{{ vehicle.registration }}">
+                  Edit
+                </button>
+                <button type="button" class="btn-danger btn-small delete-btn" data-registration="{{ vehicle.registration }}">
+                  Delete
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </section>
+
+
+  {# Add/Edit Modal #}
+  <div class="modal-overlay hidden" id="vehicleModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add Vehicle</h2>
+        <button type="button" class="modal-close" id="closeModal" aria-label="Close">×</button>
+      </div>
+
+      <form id="vehicleForm" method="post" action="{{ url_for('save_vehicle') }}">
+        <input type="hidden" id="formMode" name="mode" value="add" />
+        <input type="hidden" id="originalRegistration" name="original_registration" value="" />
+
+        <div class="modal-grid">
+          <label>
+            Registration Number
+            <input type="text" id="registration" name="registration" required />
+          </label>
+
+          <label>
+            Vehicle Name
+            <input type="text" id="name" name="name" required />
+          </label>
+
+          <label>
+            Vehicle Type
+            <input type="text" id="type" name="type" required />
+          </label>
+
+          <label>
+            Capacity
+            <input type="text" id="capacity" name="capacity" required inputmode="numeric" />
+          </label>
+
+          <label>
+            Fuel Type
+            <input type="text" id="fuel_type" name="fuel_type" required />
+          </label>
+
+          <label>
+            Current Odometer
+            <input type="text" id="odometer" name="odometer" required inputmode="numeric" />
+          </label>
+
+          <label>
+            Purchase Date
+            <input type="date" id="purchase_date" name="purchase_date" required />
+          </label>
+
+          <label>
+            Status
+            <select id="status" name="status">
+              <option value="Active">Active</option>
+              <option value="On Trip">On Trip</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelModal">Cancel</button>
+          <button type="submit" class="btn-primary">Save Vehicle</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <form id="deleteForm" method="post" action="{{ url_for('delete_vehicle') }}" class="hidden">
+    <input type="hidden" name="registration" id="deleteRegistration" />
+  </form>
+{% endblock %}
+

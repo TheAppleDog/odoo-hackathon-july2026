@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Driver Management{% endblock %}
+
+{% block content %}
+  <header class="dashboard-header driver-header">
+    <div>
+      <h1>Driver Management</h1>
+      <p>Manage drivers, verify license info, and assign vehicles.</p>
+    </div>
+
+    <button id="addDriverBtn" class="btn-primary btn-compact" type="button">
+      + Add Driver
+    </button>
+  </header>
+
+  <section class="table-card">
+    <div class="table-white-surface">
+      <div class="vehicle-filters-row compact-wrapper">
+        <div class="vehicle-filters compact-filters driver-filters">
+          <div class="search-box">
+            <input id="driverSearchInput" type="text" placeholder="🔍 Search Driver..." />
+          </div>
+
+          <div class="status-filter">
+            <select id="driverStatusFilter" aria-label="Driver status">
+              <option value="all">Status ▼</option>
+              <option value="available">Available</option>
+              <option value="on trip">On Trip</option>
+              <option value="leave">Leave</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div class="status-filter">
+            <select id="driverLicenseFilter" aria-label="License">
+              <option value="all">License ▼</option>
+              <option value="expiring">Expiring Soon</option>
+              <option value="valid">Valid</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="alert-inline">
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      <div id="driverEmptyState" class="vehicle-empty hidden">
+        <div class="vehicle-empty-icon">👤</div>
+        <div class="vehicle-empty-title">No Drivers Found</div>
+        <div class="vehicle-empty-sub">Click <b>+ Add Driver</b> to create one.</div>
+      </div>
+
+      <div class="table-responsive">
+        <table class="vehicle-table driver-table" aria-describedby="driverEmptyState">
+          <thead>
+            <tr>
+              <th>Driver Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>License Number</th>
+              <th>Assigned Vehicle</th>
+              <th>Experience</th>
+              <th>Status</th>
+              <th class="actions-col">Actions</th>
+            </tr>
+          </thead>
+
+          <tbody id="driverTableBody">
+            {% for d in drivers %}
+              <tr
+                data-license-number="{{ d.license_number }}"
+                data-status="{{ d.status|lower }}"
+                data-phone="{{ d.phone }}"
+                data-expiry="{{ d.license_expiry }}"
+              >
+                <td>{{ d.full_name }}</td>
+                <td>{{ d.phone }}</td>
+                <td>{{ d.email or '-' }}</td>
+                <td>{{ d.license_number }}</td>
+                <td>
+                  {{ d.assigned_vehicle_registration or '-' }}
+                </td>
+                <td>{{ d.experience }}</td>
+                <td>
+                  {% set status_key = d.status|lower|replace(' ','-') %}
+                  <span class="status-pill status-{{ status_key }}">{{ d.status }}</span>
+                </td>
+                <td class="action-cell">
+                  <button type="button" class="btn-secondary btn-small edit-driver-btn" data-license-number="{{ d.license_number }}">
+                    Edit
+                  </button>
+                  <button type="button" class="btn-danger btn-small delete-driver-btn" data-license-number="{{ d.license_number }}">
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="driver-pagination" aria-label="Driver table pagination">
+        <div class="pagination-meta" id="driverPaginationMeta">Showing 1–8 of 0 Drivers</div>
+        <div class="pagination-controls">
+          <button type="button" class="btn-secondary btn-small" id="driverPrevPageBtn" disabled>Previous</button>
+          <button type="button" class="btn-secondary btn-small" id="driverNextPageBtn" disabled>Next</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+
+  {# Add/Edit Driver Modal #}
+  <div class="modal-overlay hidden" id="driverModal">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="driverModalTitle">
+      <div class="modal-header">
+        <h2 id="driverModalTitle">Add Driver</h2>
+        <button type="button" class="modal-close" id="closeDriverModal" aria-label="Close">×</button>
+      </div>
+
+      <form id="driverForm" method="post" action="{{ url_for('save_driver') }}">
+        <input type="hidden" id="driverFormMode" name="mode" value="add" />
+        <input type="hidden" id="originalLicenseNumber" name="original_license_number" value="" />
+
+        <div class="modal-grid">
+          <label>
+            Driver Name
+            <input type="text" id="full_name" name="full_name" required />
+          </label>
+
+          <label>
+            Phone
+            <input type="text" id="phone" name="phone" required />
+          </label>
+
+          <label>
+            Email
+            <input type="email" id="email" name="email" required />
+          </label>
+
+          <label>
+            License Number
+            <input type="text" id="license_number" name="license_number" required />
+          </label>
+
+          <label>
+            License Expiry
+            <input type="date" id="license_expiry" name="license_expiry" required />
+          </label>
+
+          <label>
+            Assigned Vehicle
+            <select id="assigned_vehicle_registration" name="assigned_vehicle_registration">
+              <option value="">— Unassigned —</option>
+              {% for vreg in vehicle_registrations %}
+                <option value="{{ vreg }}">{{ vreg }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label>
+            Experience
+            <input type="text" id="experience" name="experience" required />
+          </label>
+
+          <label>
+            Address
+            <input type="text" id="address" name="address" />
+          </label>
+
+          <label>
+            Status
+            <select id="status" name="status">
+              <option value="Available">Available</option>
+              <option value="On Trip">On Trip</option>
+              <option value="Leave">Leave</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </label>
+
+          <label>
+            Availability
+            <select id="availability" name="availability">
+              <option value="Available">Available</option>
+              <option value="On Trip">On Trip</option>
+              <option value="Leave">Leave</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" id="cancelDriverModal">Cancel</button>
+          <button type="submit" class="btn-primary">Save Driver</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# Delete driver form #}
+  <form id="deleteDriverForm" method="post" action="{{ url_for('delete_driver') }}" class="hidden">
+    <input type="hidden" name="license_number" id="deleteDriverLicenseNumber" />
+  </form>
+{% endblock %}
+

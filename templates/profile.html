@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="page-card">
+  <div class="page-header">
+    <h1>👤 Khushi</h1>
+    <p class="muted">Role: Fleet Manager</p>
+  </div>
+
+  <div class="menu-list">
+    <a class="menu-item" href="{{ url_for('profile') }}">My Profile</a>
+    <a class="menu-item" href="{{ url_for('settings') }}">Account Settings</a>
+    <a class="menu-item danger" href="{{ url_for('logout') }}">Logout</a>
+  </div>
+</div>
+{% endblock %}
+
