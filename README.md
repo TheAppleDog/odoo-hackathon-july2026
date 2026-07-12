@@ -209,5 +209,3 @@ Developed as part of the **Odoo Hackathon**.
 ## ⭐ Thank You
 
 Thank you for reviewing TransitOps!
-
-A modern transport operations platform focused on simplifying fleet management through an intuitive dashboard and scalable backend architecture.
