@@ -50,6 +50,7 @@ body {
   background-size: 32px 32px, 28px 28px, auto;
   color: var(--text);
   min-height: 100vh;
+  overflow-x: hidden;
 }
 
 button,
@@ -64,8 +65,7 @@ a {
   text-decoration: none;
 }
 
-.page-shell,
-.dashboard-shell {
+.page-shell {
   min-height: 100vh;
   display: flex;
   align-items: center;
@@ -270,10 +270,12 @@ a {
   min-height: 100vh;
   display: flex;
   background: #f8f6fa;
+  padding: 0;
 }
 
 .dashboard-shell.dashboard-page {
   background: transparent;
+  padding: 0;
 }
 
 .sidebar {
