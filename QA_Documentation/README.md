@@ -59,7 +59,7 @@ The Delete Vehicle flow references an undefined `vehicles_data` variable.
 
 ## Documentation
 
-- [Final QA Report](./TransitOps_Final_QA_Report.pdf)
+- [Final QA Report](./TransitOps_QA_Final_Report.html)
 - [Test Cases](./corrected_qa_test_cases.csv)
 - [Defect Report](./DEFECT_REPORT.md)
 - [Execution Summary](./EXECUTION_SUMMARY.md)
